@@ -6,10 +6,10 @@ export default function Home() {
   const [desc, setDesc] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Fetch clans from API
+  // Fetch all clans
   const fetchClans = async () => {
     try {
-      const res = await fetch("/api/clans");
+      const res = await fetch("/api/clans"); // ✅ no .js
       if (!res.ok) throw new Error("Failed to fetch clans");
       const data = await res.json();
       setClans(data);
@@ -22,14 +22,14 @@ export default function Home() {
     fetchClans();
   }, []);
 
-  // Send a clan request
+  // Submit a clan request
   const sendRequest = async () => {
     if (!name || !desc) return alert("Please fill all fields");
-
     setLoading(true);
+
     try {
       const res = await fetch("/api/request", {
-        method: "POST",
+        method: "POST", // ✅ POST
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clanName: name, description: desc }),
       });
