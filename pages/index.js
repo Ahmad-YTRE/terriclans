@@ -16,7 +16,7 @@ export default function Home() {
   const fetchClans = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/clans");
+      const res = await fetch("/api/kv/clans");
       
       if (res.status === 405) {
         console.warn("API returned 405 - using fallback data");
