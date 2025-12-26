@@ -32,8 +32,8 @@ export default function Admin() {
     setLoading(true);
     try {
       const [clanRes, reqRes] = await Promise.all([
-        fetch("/api/clans"),
-        fetch("/api/request")
+        fetch("/api/kv/clans"),
+        fetch("/api/kv/request")
       ]);
       
       let clansData = [];
