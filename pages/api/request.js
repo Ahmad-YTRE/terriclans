@@ -1,51 +1,81 @@
-import fs from "fs";
-import path from "path";
+// In-memory storage (resets on server restart)
+let requests = [];
 
-const filePath = path.join(process.cwd(), "data/requests.json");
-
-// Ensure JSON exists
-if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, "[]");
-
-export default function handler(req, res) {
-  // Accept only POST, GET, PATCH
-  const allowedMethods = ["POST", "GET", "PATCH"];
-  if (!allowedMethods.includes(req.method)) {
-    res.setHeader("Allow", allowedMethods);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+export default async function handler(req, res) {
+  // Add CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle OPTIONS preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
-
-  try {
-    const data = JSON.parse(fs.readFileSync(filePath));
-
-    if (req.method === "POST") {
-      const { clanName, description } = req.body;
-      if (!clanName || !description)
-        return res.status(400).json({ error: "Missing fields" });
-
-      const newRequest = { id: Date.now(), clanName, description, status: "pending" };
-      data.push(newRequest);
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  
+  // GET all requests
+  if (req.method === 'GET') {
+    return res.status(200).json(requests);
+  }
+  
+  // POST new request
+  if (req.method === 'POST') {
+    try {
+      const { clanName, description, leader, memberCount } = req.body;
+      
+      if (!clanName || !description || !leader) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      
+      const newRequest = {
+        id: Date.now(),
+        clanName,
+        description,
+        leader,
+        memberCount: parseInt(memberCount) || 1,
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      };
+      
+      requests.push(newRequest);
       return res.status(200).json({ success: true, request: newRequest });
+    } catch (error) {
+      return res.status(500).json({ error: 'Server error' });
     }
-
-    if (req.method === "GET") {
-      return res.status(200).json(data);
-    }
-
-    if (req.method === "PATCH") {
-      const { password, id, action } = req.body;
-      if (password !== process.env.ADMIN_PASSWORD)
-        return res.status(401).json({ error: "Unauthorized" });
-
-      const request = data.find((r) => r.id === id);
-      if (!request) return res.status(404).json({ error: "Request not found" });
-
-      request.status = action === "approve" ? "approved" : "rejected";
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-      return res.status(200).json({ success: true });
-    }
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Internal server error" });
   }
+  
+  // PATCH update request (admin)
+  if (req.method === 'PATCH') {
+    try {
+      const { password, id, action } = req.body;
+      
+      const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+      
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      
+      const requestIndex = requests.findIndex(r => r.id === id);
+      if (requestIndex === -1) {
+        return res.status(404).json({ error: 'Request not found' });
+      }
+      
+      const request = requests[requestIndex];
+      request.status = action === 'approve' ? 'approved' : 'rejected';
+      request.processedAt = new Date().toISOString();
+      
+      // If approved, add to clans
+      if (action === 'approve') {
+        // We'll add to clans array (in a real app, we would import clans)
+        // For now, the admin will need to manually create the clan
+      }
+      
+      return res.status(200).json({ success: true, request: requests[requestIndex] });
+    } catch (error) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+  }
+  
+  // Method not allowed
+  res.setHeader('Allow', ['GET', 'POST', 'PATCH', 'OPTIONS']);
+  return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
 }
