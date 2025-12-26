@@ -1,53 +1,73 @@
-import fs from "fs";
-import path from "path";
+// In-memory storage (resets on server restart)
+let clans = [];
 
-const filePath = path.join(process.cwd(), "data/clans.json");
-
-// Ensure JSON file exists
-if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, "[]");
-
-export default function handler(req, res) {
-  const allowedMethods = ["GET", "POST", "DELETE"];
-  if (!allowedMethods.includes(req.method)) {
-    res.setHeader("Allow", allowedMethods);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+export default async function handler(req, res) {
+  // Add CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Handle OPTIONS preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
-
-  try {
-    const data = JSON.parse(fs.readFileSync(filePath));
-
-    // Get all clans
-    if (req.method === "GET") {
-      return res.status(200).json(data);
-    }
-
-    // Add a clan (admin only)
-    if (req.method === "POST") {
-      const { password, name, description } = req.body;
-      if (password !== process.env.ADMIN_PASSWORD)
-        return res.status(401).json({ error: "Unauthorized" });
-      if (!name || !description)
-        return res.status(400).json({ error: "Missing fields" });
-
-      const newClan = { id: Date.now(), name, description };
-      data.push(newClan);
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  
+  // GET all clans
+  if (req.method === 'GET') {
+    return res.status(200).json(clans);
+  }
+  
+  // POST new clan (admin)
+  if (req.method === 'POST') {
+    try {
+      const { password, name, description, leader, memberCount } = req.body;
+      
+      // Get admin password from environment or use default
+      const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+      
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      
+      if (!name || !description || !leader) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      
+      const newClan = {
+        id: Date.now(),
+        name,
+        description,
+        leader: leader || 'Unknown',
+        memberCount: parseInt(memberCount) || 1,
+        createdAt: new Date().toISOString()
+      };
+      
+      clans.push(newClan);
       return res.status(200).json({ success: true, clan: newClan });
+    } catch (error) {
+      return res.status(500).json({ error: 'Server error' });
     }
-
-    // Delete a clan (admin only)
-    if (req.method === "DELETE") {
-      const { password, id } = req.body;
-      if (password !== process.env.ADMIN_PASSWORD)
-        return res.status(401).json({ error: "Unauthorized" });
-
-      const filtered = data.filter((c) => c.id !== id);
-      fs.writeFileSync(filePath, JSON.stringify(filtered, null, 2));
-      return res.status(200).json({ success: true });
-    }
-
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Internal server error" });
   }
+  
+  // DELETE clan (admin)
+  if (req.method === 'DELETE') {
+    try {
+      const { password, id } = req.body;
+      
+      const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+      
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      
+      clans = clans.filter(clan => clan.id !== id);
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+  }
+  
+  // Method not allowed
+  res.setHeader('Allow', ['GET', 'POST', 'DELETE', 'OPTIONS']);
+  return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
 }
