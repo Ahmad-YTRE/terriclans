@@ -11,8 +11,8 @@ export default function Admin() {
   const fetchData = async () => {
     try {
       const [clanRes, reqRes] = await Promise.all([
-        fetch("/api/clans"),
-        fetch("/api/request"),
+        fetch("/api/clans"),   // ✅ no .js
+        fetch("/api/request")  // ✅ no .js
       ]);
       setClans(await clanRes.json());
       setRequests(await reqRes.json());
@@ -28,8 +28,8 @@ export default function Admin() {
   // Add new clan
   const addClan = async () => {
     if (!password || !name || !desc) return alert("Fill all fields");
-
     setLoading(true);
+
     try {
       const res = await fetch("/api/clans", {
         method: "POST",
@@ -78,7 +78,6 @@ export default function Admin() {
         body: JSON.stringify({ password, id, action }),
       });
       if (!res.ok) throw new Error("Failed to update request");
-
       fetchData();
     } catch (err) {
       console.error(err);
