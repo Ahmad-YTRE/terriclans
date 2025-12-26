@@ -6,7 +6,7 @@ export default function Home() {
   const [desc, setDesc] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Fetch all clans from API
+  // Fetch clans from API
   const fetchClans = async () => {
     try {
       const res = await fetch("/api/clans");
@@ -93,11 +93,6 @@ export default function Home() {
         >
           {loading ? "Sending..." : "Send"}
         </button>
-      </div>
-    </div>
-  );
-}
-
       </div>
     </div>
   );
